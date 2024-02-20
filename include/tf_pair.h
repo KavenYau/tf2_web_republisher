@@ -34,111 +34,75 @@
  *
  */
 
+#include <tf2/convert.h>
+#include <tf2/transform_datatypes.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
-#include <tf/tfMessage.h>
-#include <tf/transform_datatypes.h>
+#include <geometry_msgs/msg/point_stamped.hpp>
+#include <memory>
 
+class TFPair {
+ public:
+  TFPair() : is_okay(true), angular_thres_(0.0f), trans_thres_(0.0f), updated_(false), first_transmission_(true) {}
 
-class TFPair
-{
-public:
+  TFPair(const std::string& source_frame, const std::string& target_frame, float angular_thres = 0.0f,
+         float trans_thres = 0.0f)
+      : is_okay(true),
+        source_frame_(source_frame),
+        target_frame_(target_frame),
+        angular_thres_(angular_thres),
+        trans_thres_(trans_thres),
+        updated_(false),
+        first_transmission_(true) {}
 
-  TFPair() :
-    is_okay(true),
-    angular_thres_(0.0f),
-    trans_thres_(0.0f),
-    updated_(false),
-    first_transmission_(true)
-  {
-  }
+  ~TFPair() {}
 
-  TFPair(const std::string& source_frame,
-         const std::string& target_frame,
-         float angular_thres = 0.0f,
-         float trans_thres = 0.0f) :
-      is_okay(true),
-      source_frame_(source_frame),
-      target_frame_(target_frame),
-      angular_thres_(angular_thres),
-      trans_thres_(trans_thres),
-      updated_(false),
-      first_transmission_(true)
-  {
-  }
-
-  ~TFPair()
-  {
-  }
-
-  void setSourceFrame(const std::string& source_frame)
-  {
+  void setSourceFrame(const std::string& source_frame) {
     source_frame_ = source_frame;
     updated_ = true;
   }
 
-  const std::string& getSourceFrame() const
-  {
-    return source_frame_;
-  }
+  const std::string& getSourceFrame() const { return source_frame_; }
 
-  void setTargetFrame(const std::string& target_frame)
-  {
+  void setTargetFrame(const std::string& target_frame) {
     target_frame_ = target_frame;
     updated_ = true;
   }
 
-  const std::string& getTargetFrame() const
-  {
-    return target_frame_;
-  }
+  const std::string& getTargetFrame() const { return target_frame_; }
 
-  void setAngularThres(float angular_thres)
-  {
+  void setAngularThres(float angular_thres) {
     angular_thres_ = angular_thres;
     updated_ = true;
   }
 
-  float getAngularThres()
-  {
-    return angular_thres_;
-  }
+  float getAngularThres() { return angular_thres_; }
 
-  void setTransThres(float trans_thres)
-  {
+  void setTransThres(float trans_thres) {
     trans_thres_ = trans_thres;
     updated_ = true;
   }
 
-  float getTransThres()
-  {
-    return trans_thres_;
-  }
+  float getTransThres() { return trans_thres_; }
 
-  void updateTransform(geometry_msgs::TransformStamped& update)
-  {
-    tf::transformMsgToTF(update.transform, tf_received_);
+  void updateTransform(const geometry_msgs::msg::TransformStamped& update) {
+    tf2::fromMsg(update.transform, tf_received_);
+
     updated_ = true;
   }
 
-  void transmissionTriggered()
-  {
-    tf_transmitted_ = tf_received_;
-  }
+  void transmissionTriggered() { tf_transmitted_ = tf_received_; }
 
-  bool updateNeeded()
-  {
+  bool updateNeeded() {
     bool result = false;
 
-    if (updated_)
-    {
-      if (trans_thres_ == 0.0 || angular_thres_ == 0.0
-          || tf_transmitted_.getOrigin().distance(tf_received_.getOrigin()) > trans_thres_
-          || tf_transmitted_.getRotation().angle(tf_received_.getRotation()) > angular_thres_
-          || first_transmission_)
-      {
+    if (updated_) {
+      if (trans_thres_ == 0.0 || angular_thres_ == 0.0 ||
+          tf_transmitted_.getOrigin().distance(tf_received_.getOrigin()) > trans_thres_ ||
+          tf_transmitted_.getRotation().angle(tf_received_.getRotation()) > angular_thres_ || first_transmission_) {
         result = true;
         first_transmission_ = false;
-      }       
+      }
     }
 
     updated_ = false;
@@ -146,27 +110,23 @@ public:
     return result;
   }
 
-  const std::string getID()
-  {
-    return source_frame_+"-"+target_frame_;
-  }
+  const std::string getID() { return source_frame_ + "-" + target_frame_; }
 
-public:
-  bool is_okay; //!< save whether this transform is okay, so we can print only a single message
-                //!< if a transform breaks/starts working again
-private:
+ public:
+  bool is_okay;  //!< save whether this transform is okay, so we can print only a single message
+                 //!< if a transform breaks/starts working again
+ private:
   std::string source_frame_;
   std::string target_frame_;
 
   float angular_thres_;
   float trans_thres_;
 
-  tf::Transform tf_transmitted_;
-  tf::Transform tf_received_;
+  tf2::Transform tf_transmitted_;
+  tf2::Transform tf_received_;
 
   bool updated_;
   bool first_transmission_;
-
 };
 
-typedef boost::shared_ptr<TFPair> TFPairPtr;
+typedef std::shared_ptr<TFPair> TFPairPtr;
